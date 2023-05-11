@@ -1,0 +1,48 @@
+#include <iostream>
+#include <clocale>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+int main(int argc, char* argv[]) {
+  setlocale(LC_ALL, "uk_UA.UTF-8");
+
+  if (argc < 2) {
+    std::cerr << "Помилка: не вказано шлях до каталогу." << std::endl;
+    return 1;
+  }
+
+  fs::path dir_path = argv[1];
+  if (!fs::exists(dir_path)) {
+    std::cerr << "Помилка: вказаний каталог не існує." << std::endl;
+    return 1;
+  }
+
+  // підрахунок обсягу файлів у каталозі та його підкаталогах
+  uintmax_t total_size = 0;
+  bool count_subdirs = false;
+  for (int i = 2; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg == "/a" || arg == "/s") {
+      if (arg == "/s") {
+        count_subdirs = true;
+      }
+    } else {
+      std::cerr << "Помилка: невідомий параметр \"" << arg << "\"." << std::endl;
+      return 1;
+    }
+  }
+  for (const auto& entry : fs::recursive_directory_iterator(dir_path)) {
+    if (entry.is_regular_file() && (!count_subdirs || entry.path().parent_path() == dir_path)) {
+      fs::file_status status = entry.status();
+      if (!fs::is_hidden(status) && fs::status_known(status) && fs::status_known(status.permissions()) &&
+          (status.permissions() & fs::perms::owner_read) != fs::perms::none) {
+        total_size += entry.file_size();
+      }
+    }
+  }
+
+  std::cout << "Сумарний обсяг файлів: " << total_size << " байт" << std::endl;
+
+  return 0;
+}
